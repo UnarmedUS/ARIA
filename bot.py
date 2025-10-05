@@ -19,7 +19,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
     raise ValueError("❌ DISCORD_TOKEN environment variable is missing!")
 
-# Optional: your owner ID (used in logs/owner pings later if desired)
+# Optional: your owner ID
 OWNER_ID = 587806838716891147  # you gave this earlier
 
 # =========================
@@ -62,9 +62,8 @@ def get_server_settings(guild: discord.Guild):
         data[gid] = {
             "server_name": guild.name,
             "settings": {
-                # sensible defaults
                 "welcome_enabled": "false",
-                "welcome_channel_id": ""  # optional fixed channel
+                "welcome_channel_id": ""
             }
         }
         save_json(SERVERS_FILE, data)
@@ -104,14 +103,12 @@ async def on_ready():
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
-    # Initialize server settings and log
     settings = get_server_settings(guild)
     logs = load_json(LOGS_FILE)
     logs.setdefault("guild_joins", [])
     logs["guild_joins"].append({"guild_id": guild.id, "guild_name": guild.name})
     save_json(LOGS_FILE, logs)
 
-    # Find a channel to greet (prefer system or first text)
     channel = guild.system_channel
     if channel is None:
         for c in guild.text_channels:
@@ -131,7 +128,6 @@ async def on_guild_join(guild: discord.Guild):
 
 @bot.event
 async def on_member_join(member: discord.Member):
-    # Respect server setting
     data = get_server_settings(member.guild)
     s = data[str(member.guild.id)]["settings"]
     welcome_enabled = s.get("welcome_enabled", "false").lower() == "true"
@@ -156,11 +152,9 @@ async def on_member_join(member: discord.Member):
 
 @bot.event
 async def on_message(message: discord.Message):
-    # Ignore self
     if message.author.bot:
         return
 
-    # If ARIA is mentioned, give a friendly pointer
     if bot.user in message.mentions:
         try:
             await message.channel.send(
@@ -169,7 +163,6 @@ async def on_message(message: discord.Message):
         except Exception:
             pass
 
-    # Important: let commands still run
     await bot.process_commands(message)
 
 # =========================
@@ -194,17 +187,14 @@ async def help_cmd(interaction: discord.Interaction):
         "`/ping` — Check responsiveness",
         "`/about` — Info about ARIA",
         "`/help` — This list",
-        "`/introduce` — ARIA introduces herself based on context",
-        "`/profile [field] [value]` — Set your personal options",
+        "`/introduce` — ARIA introduces herself",
+        "`/profile [field] [value]` — Your personal options",
         "`/settings [field] [value]` — Server config (admins)",
         "`/report <message>` — Send feedback/issues"
     ]
     msg = "**Available Commands:**\n" + "\n".join(commands_list)
     await interaction.response.send_message(msg, ephemeral=True)
 
-# =========================
-# NEW: INTRODUCE (Context-aware)
-# =========================
 @bot.tree.command(name="introduce", description="ARIA introduces herself based on context.")
 async def introduce(interaction: discord.Interaction):
     in_dm = interaction.guild is None
@@ -214,7 +204,7 @@ async def introduce(interaction: discord.Interaction):
         msg = (
             f"Hey {user.mention}! I’m **ARIA** — your assistant. "
             "From DMs I can help you with personal settings and guidance. "
-            "Invite me to a server to enable coaching tools, coordination and accountability features."
+            "Invite me to a server for coordination and accountability features."
         )
         await interaction.response.send_message(msg, ephemeral=True)
         return
@@ -227,15 +217,12 @@ async def introduce(interaction: discord.Interaction):
     msg = (
         f"Hello **{guild.name}**! I’m **ARIA**.\n"
         "• I help with coaching, coordination, and healthy community interactions.\n"
-        "• Try `/help` to see what’s available now.\n"
-        "• Admins: `/settings welcome_enabled true/false` (currently **"
-        f"{welcome_status}**). Optionally set `welcome_channel_id`."
+        "• Try `/help` to see what's available now.\n"
+        "• Admins: `/settings welcome_enabled true/false` "
+        f"(currently **{welcome_status}**)."
     )
     await interaction.response.send_message(msg, ephemeral=True)
 
-# =========================
-# SETTINGS (Server)
-# =========================
 @bot.tree.command(name="settings", description="View or change server settings.")
 @app_commands.describe(
     field="The setting name to change (optional)",
@@ -246,9 +233,7 @@ async def settings_cmd(interaction: discord.Interaction, field: str = None, valu
         await interaction.response.send_message("This command must be used in a server.", ephemeral=True)
         return
 
-    # Optional: check for manage_guild permission for changes
     can_manage = interaction.user.guild_permissions.manage_guild
-
     data = get_server_settings(interaction.guild)
     gid = str(interaction.guild.id)
 
@@ -281,9 +266,6 @@ async def settings_cmd(interaction: discord.Interaction, field: str = None, valu
             ephemeral=True
         )
 
-# =========================
-# PROFILE (User)
-# =========================
 @bot.tree.command(name="profile", description="View or update your personal settings.")
 @app_commands.describe(
     field="The setting name to update (optional)",
@@ -316,9 +298,6 @@ async def profile_cmd(interaction: discord.Interaction, field: str = None, value
             ephemeral=True
         )
 
-# =========================
-# REPORT
-# =========================
 @bot.tree.command(name="report", description="Send feedback, report an issue, or suggest improvements.")
 @app_commands.describe(
     message="Describe the issue or feedback you want to report."
@@ -338,6 +317,29 @@ async def report_cmd(interaction: discord.Interaction, message: str):
         "✅ Your report has been recorded. Thank you!",
         ephemeral=True
     )
+
+# =========================
+# SYNC (Owner-only command)
+# =========================
+@bot.tree.command(name="sync", description="Owner only: force sync slash commands.")
+async def sync_commands(interaction: discord.Interaction):
+    if interaction.user.id != OWNER_ID:
+        await interaction.response.send_message(
+            "❌ You don't have permission to use this command.",
+            ephemeral=True
+        )
+        return
+    try:
+        synced = await bot.tree.sync()
+        await interaction.response.send_message(
+            f"✅ Synced {len(synced)} commands.",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Sync error: {e}",
+            ephemeral=True
+        )
 
 # =========================
 # RUN
