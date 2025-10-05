@@ -3,36 +3,50 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-# Get token from Railway environment variable
-TOKEN = os.getenv("DISCORD_TOKEN")
-
-# Set up bot intents
+# ✅ Intents (only what's needed)
 intents = discord.Intents.default()
-intents.message_content = True  # Enable if message reading is needed
+intents.message_content = False
+intents.members = False
+intents.presences = False
 
-# Create the bot instance
-bot = commands.Bot(command_prefix="!", intents=intents)
+# ✅ Bot setup
+bot = commands.Bot(
+    command_prefix="!",
+    intents=intents,
+    help_command=None  # Disable default help
+)
 
-# --- Slash Commands ---
-
-@bot.tree.command(name="ping", description="Check if the bot is responding")
-async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message("Pong!")
-
-# --- Events ---
+# ✅ Slash command tree
+tree = bot.tree
 
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
     try:
-        synced = await bot.tree.sync()
-        print(f"✅ Synced {len(synced)} command(s).")
+        await tree.sync()
+        print("✅ Slash commands synced.")
     except Exception as e:
-        print(f"❌ Error syncing commands: {e}")
+        print(f"❌ Failed to sync commands: {e}")
 
-# --- Run the Bot ---
+# ✅ /ping command
+@tree.command(name="ping", description="Check if ARIA is online.")
+async def ping_command(interaction: discord.Interaction):
+    await interaction.response.send_message("Online and running.")
 
-if __name__ == "__main__":
-    if not TOKEN:
-        raise ValueError("❌ DISCORD_TOKEN environment variable not set.")
-    bot.run(TOKEN)
+# ✅ /aria command
+@tree.command(name="aria", description="Talk to ARIA.")
+async def aria_command(interaction: discord.Interaction):
+    await interaction.response.send_message("What do you need?")
+
+# ✅ /hello command
+@tree.command(name="hello", description="Say hello to ARIA.")
+async def hello_command(interaction: discord.Interaction):
+    await interaction.response.send_message("Hey. What’s up?")
+
+# ✅ Load token from Railway environment variable
+TOKEN = os.getenv("TOKEN")
+
+if not TOKEN:
+    raise ValueError("❌ TOKEN environment variable is missing!")
+
+bot.run(TOKEN)
