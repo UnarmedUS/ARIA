@@ -11,9 +11,9 @@ intents.members = True
 intents.guilds = True
 
 # ---------- BOT SETUP ----------
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("DISCORD_TOKEN")  # ✅ Corrected Name
 if not TOKEN:
-    raise ValueError("❌ TOKEN environment variable is missing!")
+    raise ValueError("❌ DISCORD_TOKEN environment variable is missing!")
 
 bot = commands.Bot(
     command_prefix="!",
@@ -93,7 +93,6 @@ async def settings(interaction: discord.Interaction, field: str = None, value: s
     guild_id = str(interaction.guild.id)
     data = load_json(SERVERS_FILE)
 
-    # Create server entry if missing
     if guild_id not in data:
         data[guild_id] = {
             "server_name": interaction.guild.name,
@@ -101,7 +100,6 @@ async def settings(interaction: discord.Interaction, field: str = None, value: s
         }
         save_json(SERVERS_FILE, data)
 
-    # If no args, show the current settings
     if field is None and value is None:
         current = data[guild_id]["settings"]
         if not current:
@@ -112,7 +110,6 @@ async def settings(interaction: discord.Interaction, field: str = None, value: s
         await interaction.response.send_message(msg, ephemeral=True)
         return
 
-    # If both field & value provided, update the setting
     if field and value:
         data[guild_id]["settings"][field] = value
         save_json(SERVERS_FILE, data)
@@ -134,7 +131,6 @@ async def profile(interaction: discord.Interaction, field: str = None, value: st
     user_id = str(interaction.user.id)
     data = load_json(USERS_FILE)
 
-    # Create user entry if missing
     if user_id not in data:
         data[user_id] = {
             "username": interaction.user.name,
@@ -142,7 +138,6 @@ async def profile(interaction: discord.Interaction, field: str = None, value: st
         }
         save_json(USERS_FILE, data)
 
-    # If no args, show current profile settings
     if field is None and value is None:
         current = data[user_id]["settings"]
         if not current:
@@ -153,7 +148,6 @@ async def profile(interaction: discord.Interaction, field: str = None, value: st
         await interaction.response.send_message(msg, ephemeral=True)
         return
 
-    # If both field and value provided, update
     if field and value:
         data[user_id]["settings"][field] = value
         save_json(USERS_FILE, data)
@@ -174,11 +168,9 @@ async def report(interaction: discord.Interaction, message: str):
     user_id = str(interaction.user.id)
     logs = load_json(LOGS_FILE)
 
-    # Create user log list if absent
     if user_id not in logs:
         logs[user_id] = []
 
-    # Append the report
     logs[user_id].append({
         "username": interaction.user.name,
         "message": message
